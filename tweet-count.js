@@ -1,0 +1,107 @@
+const puppeteer = require('puppeteer');
+const readlineSync = require('readline-sync');
+
+// Define sleep function
+const sleep = ms => { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+const DELAY = 4000;
+const TARGET_MEDIUM = "Twitter for iPhone";
+
+// Wait for user's response.
+const username = readlineSync.question('Your twitter username: ');
+const pwd = readlineSync.question('Password: ', {
+  hideEchoBack: true
+});
+
+const target = readlineSync.question('User you want to analyze: ');
+// const username = "bawgz";
+// const pwd = "June2494";
+// const target = "bawgz";
+
+(async () => {
+  // Setup puppeteer
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
+  page.on('console', consoleObj => console.log(consoleObj.text()));
+  await page.setViewport({ width: 1280, height: 800 });
+
+  // Login
+  await page.goto(
+    `https://twitter.com/${target}/with_replies`, 
+    { waitUntil: 'networkidle2' }
+  );
+  await page.waitForSelector('input.email-input');
+  await page.type('input.email-input', username);
+  await page.type('input.js-password-field', pwd);
+  await page.click('button.submit');
+//   await page.waitForNavigation();
+
+  // Open new Twitter
+//   await page.waitForSelector('#timeline');
+//   await page.click('#user-dropdown-toggle');
+//   await page.waitForSelector('.enable-rweb-link');
+//   await page.click('.enable-rweb-link');
+
+  // Go to target profile
+//   await page.waitForNavigation({ waitUntil: 'networkidle2' });
+//   await page.goto(
+//     `https://twitter.com/${target}/with_replies`, 
+//     { waitUntil: 'networkidle2' }
+//   );
+
+  // Variables
+  const data = [];
+  const urls = [];
+  await page.evaluate(() => {
+    window.i = 0;
+  });
+
+  while ( true ) {
+    await page.evaluate(async (DELAY) => {
+      const tweetsSelector = "div[data-testid=tweet]";
+      console.log("Total visible tweets", document.querySelectorAll(tweetsSelector).length);
+      console.log("Current index", window.i);
+      const tweet = document.querySelectorAll(tweetsSelector)[window.i];
+      if ( typeof tweet === "undefined" ) {
+        console.log("Fetching more tweets");
+        window.i = 0;
+        window.scrollBy(0, 1500);
+        const sleep = ms => { return new Promise(resolve => setTimeout(resolve, ms)); }
+        await sleep(DELAY);
+        document.querySelectorAll(tweetsSelector)[0].click();
+      } else {
+        tweet.click();
+      }
+      window.i++;
+    }, DELAY);
+
+    const url = page.url();
+
+    if ( urls.indexOf(url) > -1 ) {
+      console.log("Ooops, repeated URL", url);
+    } else if ( url.indexOf(`https://twitter.com/${target}/`) === -1 ) {
+      console.log("Ooops, this does not belong to the target", url);
+    } else {
+      urls.push(url);
+      console.log("New tweet found on", url);
+      const selector = "a[href='https://help.twitter.com/using-twitter/how-to-tweet#source-labels'] > span";
+      await page.waitForSelector(selector);
+      const medium = await page.$eval(
+        selector, 
+        node => `${node.textContent}`
+      );
+      console.log("Tweeted via", medium);
+      data.push(medium);
+      console.log("Evaluated", data.length, "tweets");
+    }
+
+    // Count how many were with the target medium
+    const count = data.filter(medium => medium === TARGET_MEDIUM).length;
+    const percentage = ((count / data.length) * 100).toFixed(2);
+    console.log(`Total tweets via ${TARGET_MEDIUM}: ${percentage}%`);
+
+    // Wait to prevent API throttle
+    await sleep(DELAY);
+    await page.goBack();
+  }
+})();

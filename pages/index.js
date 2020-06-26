@@ -11,6 +11,7 @@ import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Link from '@material-ui/core/Link';
 import CircularProgress from '@material-ui/core/CircularProgress';
+import Hidden from '@material-ui/core/Hidden';
 
 const Home = () => {
 
@@ -33,8 +34,11 @@ const Home = () => {
       height: 28,
       margin: 4,
     },
+    topSpacing: {
+      marginTop: '40px',
+    },
   }))();
-  
+
   const [ tweets, setTweets ] = useState([]);
   const [ username, setUsername ] = useState('');
   const [ loading, setLoading ] = useState(false);
@@ -42,6 +46,7 @@ const Home = () => {
   const getDert = (event) => {
     event.preventDefault();
     setLoading(true);
+    setTweets([]);
     fetch(`api/dert?user=${username}`).then(resp => resp.json()).then(tweetsResp => {
       console.log(tweetsResp);
       setTweets(tweetsResp);
@@ -69,11 +74,11 @@ const Home = () => {
             </Grid>
           </Grid>
         </AppBar>
-        <Container maxWidth="sm">
+        <Container maxWidth="sm" className={classes.topSpacing}>
           <Paper component="form" onSubmit={getDert} className={classes.root}>
             <InputBase
               className={classes.input}
-              placeholder="Search for dert by username"
+              placeholder="Search by username"
               value={username}
               onChange={value => {
                 console.log(value.target.value);
@@ -86,30 +91,33 @@ const Home = () => {
             </IconButton>
           </Paper>
         </Container>
-        <Grid container justify="center">
-          { loading && <CircularProgress />}
+        <Grid container direction="column" alignItems="center" justify="center">
+          { loading && (
+              <Grid item className={classes.topSpacing}>
+                <CircularProgress/>
+              </Grid>
+          )}
+          { loading && (
+            <Grid item>
+              Yeah, this might take a while...
+            </Grid>
+          )}
           {
-            tweets.map(tweet => (
-              <Grid item>
-                <div>{tweet.id}</div>
-                <TwitterTweetEmbed tweetId={tweet.id} />
+            tweets.map((tweetId, index) => (
+              <Grid item key={index}>
+                <div>{index}: {tweetId}</div>
+                <TwitterTweetEmbed tweetId={tweetId} />
               </Grid>
             ))
           }
         </Grid>
       </div>
   
-      <style jsx>{`
-        .hello {
-          marginLeft: 4,
-          flex: 1,
-          width: 100% !important
-        },
-        .icon-button: {
-          padding: 10,
-          float: right
+      {/* <style jsx>{`
+        .top-spacing: {
+          margin-top: 40px
         }
-      `}</style>
+      `}</style> */}
     </div>
   )
 }
